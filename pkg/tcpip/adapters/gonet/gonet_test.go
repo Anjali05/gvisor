@@ -57,6 +57,22 @@ func TestTimeouts(t *testing.T) {
 	}
 }
 
+var ipv4Subnet = func() tcpip.Subnet {
+	subnet, err := tcpip.NewSubnet(tcpip.Address(net.IPv4zero.To4()), tcpip.AddressMask(net.IPv4zero.To4()))
+	if err != nil {
+		panic(err)
+	}
+	return subnet
+}()
+
+var ipv6Subnet = func() tcpip.Subnet {
+	subnet, err := tcpip.NewSubnet(tcpip.Address(net.IPv6zero), tcpip.AddressMask(net.IPv6zero))
+	if err != nil {
+		panic(err)
+	}
+	return subnet
+}()
+
 func newLoopbackStack() (*stack.Stack, *tcpip.Error) {
 	// Create the stack and add a NIC.
 	s := stack.New([]string{ipv4.ProtocolName, ipv6.ProtocolName}, []string{tcp.ProtocolName, udp.ProtocolName}, stack.Options{})
@@ -69,17 +85,13 @@ func newLoopbackStack() (*stack.Stack, *tcpip.Error) {
 	s.SetRouteTable([]tcpip.Route{
 		// IPv4
 		{
-			Destination: tcpip.Address(strings.Repeat("\x00", 4)),
-			Mask:        tcpip.AddressMask(strings.Repeat("\x00", 4)),
-			Gateway:     "",
+			Destination: ipv4Subnet,
 			NIC:         NICID,
 		},
 
 		// IPv6
 		{
-			Destination: tcpip.Address(strings.Repeat("\x00", 16)),
-			Mask:        tcpip.AddressMask(strings.Repeat("\x00", 16)),
-			Gateway:     "",
+			Destination: ipv6Subnet,
 			NIC:         NICID,
 		},
 	})

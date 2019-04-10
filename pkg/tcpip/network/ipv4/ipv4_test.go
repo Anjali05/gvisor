@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"math/rand"
+	"net"
 	"testing"
 
 	"gvisor.dev/gvisor/pkg/tcpip"
@@ -51,12 +52,16 @@ func TestExcludeBroadcast(t *testing.T) {
 		t.Fatalf("AddAddress failed: %v", err)
 	}
 
-	s.SetRouteTable([]tcpip.Route{{
-		Destination: "\x00\x00\x00\x00",
-		Mask:        "\x00\x00\x00\x00",
-		Gateway:     "",
-		NIC:         1,
-	}})
+	{
+		subnet, err := tcpip.NewSubnet(tcpip.Address(net.IPv4zero.To4()), tcpip.AddressMask(net.IPv4zero.To4()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.SetRouteTable([]tcpip.Route{{
+			Destination: subnet,
+			NIC:         1,
+		}})
+	}
 
 	randomAddr := tcpip.FullAddress{NIC: 1, Addr: "\x0a\x00\x00\x01", Port: 53}
 
@@ -247,14 +252,22 @@ func buildContext(t *testing.T, packetCollectorErrors []*tcpip.Error, mtu uint32
 	_, linkEP := newErrorChannel(100 /* Enough for all tests. */, mtu, "", packetCollectorErrors)
 	linkEPId := stack.RegisterLinkEndpoint(linkEP)
 	s.CreateNIC(1, linkEPId)
-	s.AddAddress(1, ipv4.ProtocolNumber, "\x10\x00\x00\x01")
-	s.SetRouteTable([]tcpip.Route{{
-		Destination: "\x10\x00\x00\x02",
-		Mask:        "\xff\xff\xff\xff",
-		Gateway:     "",
-		NIC:         1,
-	}})
-	r, err := s.FindRoute(0, "\x10\x00\x00\x01", "\x10\x00\x00\x02", ipv4.ProtocolNumber, false /* multicastLoop */)
+	const (
+		src = "\x10\x00\x00\x01"
+		dst = "\x10\x00\x00\x02"
+	)
+	s.AddAddress(1, ipv4.ProtocolNumber, src)
+	{
+		subnet, err := tcpip.NewSubnet(dst, tcpip.AddressMask(header.IPv4Broadcast))
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.SetRouteTable([]tcpip.Route{{
+			Destination: subnet,
+			NIC:         1,
+		}})
+	}
+	r, err := s.FindRoute(0, src, dst, ipv4.ProtocolNumber, false /* multicastLoop */)
 	if err != nil {
 		t.Fatalf("s.FindRoute got %v, want %v", err, nil)
 	}

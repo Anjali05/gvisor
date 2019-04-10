@@ -15,6 +15,7 @@
 package arp_test
 
 import (
+	"net"
 	"testing"
 	"time"
 
@@ -64,10 +65,13 @@ func newTestContext(t *testing.T) *testContext {
 		t.Fatalf("AddAddress for arp failed: %v", err)
 	}
 
+	subnet, err := tcpip.NewSubnet(tcpip.Address(net.IPv4zero.To4()), tcpip.AddressMask(net.IPv4zero.To4()))
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	s.SetRouteTable([]tcpip.Route{{
-		Destination: "\x00\x00\x00\x00",
-		Mask:        "\x00\x00\x00\x00",
-		Gateway:     "",
+		Destination: subnet,
 		NIC:         1,
 	}})
 

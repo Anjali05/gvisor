@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"net"
 	"testing"
 	"time"
 
@@ -2845,6 +2846,22 @@ func TestMinMaxBufferSizes(t *testing.T) {
 	checkSendBufferSize(t, ep, tcp.DefaultSendBufferSize*30)
 }
 
+var ipv4Subnet = func() tcpip.Subnet {
+	subnet, err := tcpip.NewSubnet(tcpip.Address(net.IPv4zero.To4()), tcpip.AddressMask(net.IPv4zero.To4()))
+	if err != nil {
+		panic(err)
+	}
+	return subnet
+}()
+
+var ipv6Subnet = func() tcpip.Subnet {
+	subnet, err := tcpip.NewSubnet(tcpip.Address(net.IPv6zero), tcpip.AddressMask(net.IPv6zero))
+	if err != nil {
+		panic(err)
+	}
+	return subnet
+}()
+
 func makeStack() (*stack.Stack, *tcpip.Error) {
 	s := stack.New([]string{
 		ipv4.ProtocolName,
@@ -2874,15 +2891,11 @@ func makeStack() (*stack.Stack, *tcpip.Error) {
 
 	s.SetRouteTable([]tcpip.Route{
 		{
-			Destination: "\x00\x00\x00\x00",
-			Mask:        "\x00\x00\x00\x00",
-			Gateway:     "",
+			Destination: ipv4Subnet,
 			NIC:         1,
 		},
 		{
-			Destination: "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-			Mask:        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-			Gateway:     "",
+			Destination: ipv6Subnet,
 			NIC:         1,
 		},
 	})

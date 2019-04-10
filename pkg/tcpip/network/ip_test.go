@@ -41,6 +41,22 @@ const (
 	ipv6Gateway    = "\x0a\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x03"
 )
 
+var ipv4Subnet = func() tcpip.Subnet {
+	subnet, err := tcpip.NewSubnet(ipv4SubnetAddr, ipv4SubnetMask)
+	if err != nil {
+		panic(err)
+	}
+	return subnet
+}()
+
+var ipv6Subnet = func() tcpip.Subnet {
+	subnet, err := tcpip.NewSubnet(ipv6SubnetAddr, ipv6SubnetMask)
+	if err != nil {
+		panic(err)
+	}
+	return subnet
+}()
+
 // testObject implements two interfaces: LinkEndpoint and TransportDispatcher.
 // The former is used to pretend that it's a link endpoint so that we can
 // inspect packets written by the network endpoints. The latter is used to
@@ -171,8 +187,7 @@ func buildIPv4Route(local, remote tcpip.Address) (stack.Route, *tcpip.Error) {
 	s.CreateNIC(1, loopback.New())
 	s.AddAddress(1, ipv4.ProtocolNumber, local)
 	s.SetRouteTable([]tcpip.Route{{
-		Destination: ipv4SubnetAddr,
-		Mask:        ipv4SubnetMask,
+		Destination: ipv4Subnet,
 		Gateway:     ipv4Gateway,
 		NIC:         1,
 	}})
@@ -185,8 +200,7 @@ func buildIPv6Route(local, remote tcpip.Address) (stack.Route, *tcpip.Error) {
 	s.CreateNIC(1, loopback.New())
 	s.AddAddress(1, ipv6.ProtocolNumber, local)
 	s.SetRouteTable([]tcpip.Route{{
-		Destination: ipv6SubnetAddr,
-		Mask:        ipv6SubnetMask,
+		Destination: ipv6Subnet,
 		Gateway:     ipv6Gateway,
 		NIC:         1,
 	}})

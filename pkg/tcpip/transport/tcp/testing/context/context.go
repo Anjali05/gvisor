@@ -18,6 +18,7 @@ package context
 
 import (
 	"bytes"
+	"net"
 	"testing"
 	"time"
 
@@ -166,17 +167,21 @@ func New(t *testing.T, mtu uint32) *Context {
 		t.Fatalf("AddAddress failed: %v", err)
 	}
 
+	ipv4Subnet, err := tcpip.NewSubnet(tcpip.Address(net.IPv4zero.To4()), tcpip.AddressMask(net.IPv4zero.To4()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ipv6Subnet, err := tcpip.NewSubnet(tcpip.Address(net.IPv6zero), tcpip.AddressMask(net.IPv6zero))
+	if err != nil {
+		t.Fatal(err)
+	}
 	s.SetRouteTable([]tcpip.Route{
 		{
-			Destination: "\x00\x00\x00\x00",
-			Mask:        "\x00\x00\x00\x00",
-			Gateway:     "",
+			Destination: ipv4Subnet,
 			NIC:         1,
 		},
 		{
-			Destination: "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-			Mask:        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-			Gateway:     "",
+			Destination: ipv6Subnet,
 			NIC:         1,
 		},
 	})
