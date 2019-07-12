@@ -2845,6 +2845,62 @@ func TestMinMaxBufferSizes(t *testing.T) {
 	checkSendBufferSize(t, ep, tcp.DefaultSendBufferSize*30)
 }
 
+func TestBindToDeviceOption(t *testing.T) {
+	s := stack.New([]string{ipv4.ProtocolName}, []string{tcp.ProtocolName}, stack.Options{})
+
+	ep, err := s.NewEndpoint(tcp.ProtocolNumber, ipv4.ProtocolNumber, &waiter.Queue{})
+	if err != nil {
+		t.Fatalf("NewEndpoint failed; %v", err)
+	}
+	defer ep.Close()
+
+	linkEp := loopback.New()
+	if err := s.CreateNamedNIC(321, "my_device", linkEp); err != nil {
+		t.Errorf("CreateNamedNIC failed: %v", err)
+	}
+
+	// Make an nameless NIC.
+	linkEp2 := loopback.New()
+	if err := s.CreateNIC(54321, linkEp2); err != nil {
+		t.Errorf("CreateNIC failed: %v", err)
+	}
+
+	// strPtr is used instead of taking the address of string literals, which is
+	// a compiler error.
+	strPtr := func(s string) *string {
+		return &s
+	}
+
+	testActions := []struct {
+		name                 string
+		setBindToDevice      *string
+		setBindToDeviceError *tcpip.Error
+		getBindToDevice      tcpip.BindToDeviceOption
+	}{
+		{"GetDefaultValue", nil, nil, ""},
+		{"BindToNonExistent", strPtr("non_existent_device"), tcpip.ErrUnknownDevice, ""},
+		{"BindToExistent", strPtr("my_device"), nil, "my_device"},
+		{"UnbindToDevice", strPtr(""), nil, ""},
+	}
+	for _, testAction := range testActions {
+		t.Run(testAction.name, func(t *testing.T) {
+			if testAction.setBindToDevice != nil {
+				bindToDevice := tcpip.BindToDeviceOption(*testAction.setBindToDevice)
+				if got, want := ep.SetSockOpt(bindToDevice), testAction.setBindToDeviceError; got != want {
+					t.Errorf("SetSockOpt(%v) got %v, want %v", bindToDevice, got, want)
+				}
+			}
+			bindToDevice := tcpip.BindToDeviceOption("to be modified by GetSockOpt")
+			if ep.GetSockOpt(&bindToDevice) != nil {
+				t.Errorf("GetSockOpt got %v, want %v", ep.GetSockOpt(&bindToDevice), nil)
+			}
+			if got, want := bindToDevice, testAction.getBindToDevice; got != want {
+				t.Errorf("bindToDevice got %q, want %q", got, want)
+			}
+		})
+	}
+}
+
 func makeStack() (*stack.Stack, *tcpip.Error) {
 	s := stack.New([]string{
 		ipv4.ProtocolName,

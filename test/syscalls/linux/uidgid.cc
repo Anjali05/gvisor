@@ -20,6 +20,7 @@
 #include "gtest/gtest.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
+#include "test/syscalls/linux/uid_util.h"
 #include "test/util/capability_util.h"
 #include "test/util/posix_error.h"
 #include "test/util/test_util.h"
@@ -65,30 +66,6 @@ TEST(UidGidTest, Getgroups) {
 
   // Testing for EFAULT requires actually having groups, which isn't guaranteed
   // here; see the setgroups test below.
-}
-
-// If the caller's real/effective/saved user/group IDs are all 0, IsRoot returns
-// true. Otherwise IsRoot logs an explanatory message and returns false.
-PosixErrorOr<bool> IsRoot() {
-  uid_t ruid, euid, suid;
-  int rc = getresuid(&ruid, &euid, &suid);
-  MaybeSave();
-  if (rc < 0) {
-    return PosixError(errno, "getresuid");
-  }
-  if (ruid != 0 || euid != 0 || suid != 0) {
-    return false;
-  }
-  gid_t rgid, egid, sgid;
-  rc = getresgid(&rgid, &egid, &sgid);
-  MaybeSave();
-  if (rc < 0) {
-    return PosixError(errno, "getresgid");
-  }
-  if (rgid != 0 || egid != 0 || sgid != 0) {
-    return false;
-  }
-  return true;
 }
 
 // Checks that the calling process' real/effective/saved user IDs are
