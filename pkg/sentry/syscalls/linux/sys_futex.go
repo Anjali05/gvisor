@@ -63,9 +63,16 @@ func futexWaitAbsolute(t *kernel.Task, clockRealtime bool, ts linux.Timespec, fo
 	} else if clockRealtime {
 		notifier, tchan := ktime.NewChannelNotifier()
 		timer := ktime.NewTimer(t.Kernel().RealtimeClock(), notifier)
+		// We're about to block. Even if the timer has already expired,
+		// we do a scheduler cycle here to ensure that applications that
+		// rely on a FUTEX_WAIT to actually yield the CPU don't busy-wait.
+		//
+		// This is seen in practice, for example:
+		// https://github.com/LMAX-Exchange/disruptor/commit/6ca210f2bcd23f703c479804d583718e16f43c07
 		timer.Swap(ktime.Setting{
-			Enabled: true,
-			Next:    ktime.FromTimespec(ts),
+			Enabled:    true,
+			ForceSched: true,
+			Next:       ktime.FromTimespec(ts),
 		})
 		err = t.BlockWithTimer(w.C, tchan)
 		timer.Destroy()

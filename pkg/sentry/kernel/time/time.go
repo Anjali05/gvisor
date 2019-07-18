@@ -19,6 +19,7 @@ package time
 import (
 	"fmt"
 	"math"
+	"runtime"
 	"sync"
 	"time"
 
@@ -298,6 +299,16 @@ type TimerListener interface {
 type Setting struct {
 	// Enabled is true if the timer is running.
 	Enabled bool
+
+	// ForceSched indicates that, when setting the timer and the timer
+	// has already expired, a call to runtime.Gosched should be made.
+	// The intended use case here is that, in some cases, tiny timer
+	// amounts are incorrectly used as a "yield" call. We don't want
+	// to actually yield if a sleep will occur anyways, but we must
+	// force a yield if a sleep will not occur.
+	//
+	// This is used only during set and should otherwise be false.
+	ForceSched bool
 
 	// Next is the time in nanoseconds of the next expiration.
 	Next Time
@@ -629,6 +640,9 @@ func (t *Timer) SwapAnd(s Setting, f func()) (Time, Setting) {
 	t.setting = newS
 	if newExp > 0 {
 		t.listener.Notify(newExp)
+		if s.ForceSched {
+			runtime.Gosched()
+		}
 	}
 	t.resetKickerLocked(now)
 	return now, oldS

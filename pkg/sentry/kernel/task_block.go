@@ -63,6 +63,12 @@ func (t *Task) BlockWithTimeout(C chan struct{}, haveTimeout bool, timeout time.
 // received from C, ETIMEDOUT if the deadline expired, and
 // syserror.ErrInterrupted if t is interrupted.
 //
+// Note that if the deadline has already expired by the time the actual
+// block call is made, then a call to runtime.Gosched will be made. This
+// is because in some cases, blocking with a passed deadline is used as
+// a substitute for yield. See the ForceSched parameter in time.Setting
+// for more information.
+//
 // Preconditions: The caller must be running on the task goroutine.
 func (t *Task) BlockWithDeadline(C chan struct{}, haveDeadline bool, deadline ktime.Time) error {
 	if !haveDeadline {
@@ -71,8 +77,9 @@ func (t *Task) BlockWithDeadline(C chan struct{}, haveDeadline bool, deadline kt
 
 	// Start the timeout timer.
 	t.blockingTimer.Swap(ktime.Setting{
-		Enabled: true,
-		Next:    deadline,
+		Enabled:    true,
+		ForceSched: true,
+		Next:       deadline,
 	})
 
 	err := t.block(C, t.blockingTimerChan)
