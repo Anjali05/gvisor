@@ -28,6 +28,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 var (
@@ -52,27 +53,38 @@ func main() {
 		os.Exit(1)
 	}
 	if *list {
-		listTests()
+		for _, test := range listTests() {
+			fmt.Println(test)
+		}
 		return
 	}
 	if *version {
 		fmt.Println("Go version: ", os.Getenv("LANG_VER"), "  is installed.")
 		return
 	}
-	runTest(*test)
+	if *test != "" {
+		runTest(*test)
+		return
+	}
+	runAllTests()
 }
 
-func listTests() {
+func listTests() []string {
 	// Go tool dist test tests.
 	args := []string{"tool", "dist", "test", "-list"}
 	cmd := exec.Command(filepath.Join(dir, "bin/go"), args...)
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	if err := cmd.Run(); err != nil {
+	cmd.Stderr = os.Stderr
+	out, err := cmd.Output()
+	if err != nil {
 		log.Fatalf("Failed to list: %v", err)
+	}
+	toolTests := string(out)
+	var testSlice []string
+	for _, test := range strings.Split(toolTests, "\n") {
+		testSlice = append(testSlice, test)
 	}
 
 	// Go tests on disk.
-	var tests []string
 	if err := filepath.Walk(testDir, func(path string, info os.FileInfo, err error) error {
 		name := filepath.Base(path)
 
@@ -88,15 +100,13 @@ func listTests() {
 			return nil
 		}
 
-		tests = append(tests, path)
+		testSlice = append(testSlice, path)
 		return nil
 	}); err != nil {
-		log.Fatalf("Failed to walk %q: %v", dir, err)
+		log.Fatalf("Failed to walk %q: %v", testDir, err)
 	}
 
-	for _, file := range tests {
-		fmt.Println(file)
-	}
+	return testSlice
 }
 
 func runTest(test string) {
@@ -110,43 +120,35 @@ func runTest(test string) {
 		"run.go",
 		"-v",
 	}
-	if test != "" {
-		// Check if test exists on disk by searching for file of the same name.
-		// This will determine whether or not it is a Go test on disk.
-		if _, err := os.Stat(test); err == nil {
-			relPath, err := filepath.Rel(testDir, test)
-			if err != nil {
-				log.Fatalf("Failed to get rel path: %v", err)
-			}
-			diskArgs = append(diskArgs, "--", relPath)
-			cmd := exec.Command(filepath.Join(dir, "bin/go"), diskArgs...)
-			cmd.Dir = testDir
-			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-			if err := cmd.Run(); err != nil {
-				log.Fatalf("Failed to run: %v", err)
-			}
-		} else if os.IsNotExist(err) {
-			// File was not found, try running as Go tool test.
-			toolArgs = append(toolArgs, "-run", test)
-			cmd := exec.Command(filepath.Join(dir, "bin/go"), toolArgs...)
-			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-			if err := cmd.Run(); err != nil {
-				log.Fatalf("Failed to run: %v", err)
-			}
-		} else {
-			log.Fatalf("Error searching for test: %v", err)
+	// Check if test exists on disk by searching for file of the same name.
+	// This will determine whether or not it is a Go test on disk.
+	if _, err := os.Stat(test); err == nil {
+		relPath, err := filepath.Rel(testDir, test)
+		if err != nil {
+			log.Fatalf("Failed to get rel path: %v", err)
 		}
-		return
+		diskArgs = append(diskArgs, "--", relPath)
+		cmd := exec.Command(filepath.Join(dir, "bin/go"), diskArgs...)
+		cmd.Dir = testDir
+		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+		if err := cmd.Run(); err != nil {
+			log.Fatalf("Failed to run: %v", err)
+		}
+	} else if os.IsNotExist(err) {
+		// File was not found, try running as Go tool test.
+		toolArgs = append(toolArgs, "-run", test)
+		cmd := exec.Command(filepath.Join(dir, "bin/go"), toolArgs...)
+		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+		if err := cmd.Run(); err != nil {
+			log.Fatalf("Failed to run: %v", err)
+		}
+	} else {
+		log.Fatalf("Error searching for test: %v", err)
 	}
-	runAllTool := exec.Command(filepath.Join(dir, "bin/go"), toolArgs...)
-	runAllTool.Stdout, runAllTool.Stderr = os.Stdout, os.Stderr
-	if err := runAllTool.Run(); err != nil {
-		log.Fatalf("Failed to run: %v", err)
-	}
-	runAllDisk := exec.Command(filepath.Join(dir, "bin/go"), diskArgs...)
-	runAllDisk.Dir = testDir
-	runAllDisk.Stdout, runAllDisk.Stderr = os.Stdout, os.Stderr
-	if err := runAllDisk.Run(); err != nil {
-		log.Fatalf("Failed to run disk tests: %v", err)
+}
+
+func runAllTests() {
+	for _, test := range listTests() {
+		runTest(test)
 	}
 }

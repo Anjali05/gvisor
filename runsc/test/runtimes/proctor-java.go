@@ -44,17 +44,23 @@ func main() {
 		os.Exit(1)
 	}
 	if *list {
-		listTests()
+		for _, test := range listTests() {
+			fmt.Println(test)
+		}
 		return
 	}
 	if *version {
 		fmt.Println("Java version: ", os.Getenv("LANG_VER"), " is installed.")
 		return
 	}
-	runTest(*test)
+	if *test != "" {
+		runTest(*test)
+		return
+	}
+	runAllTests()
 }
 
-func listTests() {
+func listTests() []string {
 	args := []string{
 		"-dir:test/jdk",
 		"-ignore:quiet",
@@ -72,22 +78,26 @@ func listTests() {
 		log.Fatalf("Failed to list: %v", err)
 	}
 	allTests := string(out)
+	var testSlice []string
 	for _, test := range strings.Split(allTests, "\n") {
 		if !exclDirs.MatchString(test) {
-			fmt.Println(test)
+			testSlice = append(testSlice, test)
 		}
 	}
+	return testSlice
 }
 
 func runTest(test string) {
-	// TODO(brettlandau): Change to use listTests() for running all tests.
-	cmd := exec.Command("make", "run-test-tier1")
-	if test != "" {
-		args := []string{"-dir:test/jdk/", test}
-		cmd = exec.Command(jtreg, args...)
-	}
+	args := []string{"-dir:test/jdk/", test}
+	cmd := exec.Command(jtreg, args...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("Failed to run: %v", err)
+	}
+}
+
+func runAllTests() {
+	for _, test := range listTests() {
+		runTest(test)
 	}
 }

@@ -42,18 +42,24 @@ func main() {
 		os.Exit(1)
 	}
 	if *list {
-		listTests()
+		for _, test := range listTests() {
+			fmt.Println(test)
+		}
 		return
 	}
 	if *version {
 		fmt.Println("Python version: ", os.Getenv("LANG_VER"), " is installed.")
 		return
 	}
-	runTest(*test)
+	if *test != "" {
+		runTest(*test)
+		return
+	}
+	runAllTests()
 }
 
-func listTests() {
-	var files []string
+func listTests() []string {
+	var testSlice []string
 	root := filepath.Join(dir, "Lib/test")
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -67,7 +73,7 @@ func listTests() {
 		if err != nil {
 			return err
 		}
-		files = append(files, relPath)
+		testSlice = append(testSlice, relPath)
 		return nil
 	})
 
@@ -75,19 +81,20 @@ func listTests() {
 		log.Fatalf("Failed to walk %q: %v", root, err)
 	}
 
-	for _, file := range files {
-		fmt.Println(file)
-	}
+	return testSlice
 }
 
 func runTest(test string) {
-	args := []string{"-m", "test"}
-	if test != "" {
-		args = append(args, test)
-	}
+	args := []string{"-m", "test", test}
 	cmd := exec.Command(filepath.Join(dir, "python"), args...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("Failed to run: %v", err)
+	}
+}
+
+func runAllTests() {
+	for _, test := range listTests() {
+		runTest(test)
 	}
 }
