@@ -18,6 +18,7 @@ import (
 	"fmt"
 	mrand "math/rand"
 
+
 	"gvisor.dev/gvisor/pkg/abi/linux"
 	"gvisor.dev/gvisor/pkg/sentry/context"
 	"gvisor.dev/gvisor/pkg/sentry/kernel/auth"
@@ -27,6 +28,7 @@ import (
 	"gvisor.dev/gvisor/pkg/sentry/pgalloc"
 	"gvisor.dev/gvisor/pkg/sentry/usermem"
 	"gvisor.dev/gvisor/pkg/syserror"
+	"gvisor.dev/gvisor/pkg/log"
 )
 
 // HandleUserFault handles an application page fault. sp is the faulting
@@ -74,7 +76,7 @@ func (mm *MemoryManager) HandleUserFault(ctx context.Context, addr usermem.Addr,
 // MMap establishes a memory mapping.
 func (mm *MemoryManager) MMap(ctx context.Context, opts memmap.MMapOpts) (usermem.Addr, error) {
 
-	fmt.Sprintf("Inside Mmap")
+	log.Infof("Hello from MMap")
 	if opts.Length == 0 {
 		return 0, syserror.EINVAL
 	}
@@ -170,6 +172,8 @@ func (mm *MemoryManager) MMap(ctx context.Context, opts memmap.MMapOpts) (userme
 //
 // Preconditions: mm.mappingMu must be locked. vseg.Range().IsSupersetOf(ar).
 func (mm *MemoryManager) populateVMA(ctx context.Context, vseg vmaIterator, ar usermem.AddrRange, precommit bool) {
+		log.Infof("Hello from populateVMA")
+
 	if !vseg.ValuePtr().effectivePerms.Any() {
 		// Linux doesn't populate inaccessible pages. See
 		// mm/gup.c:populate_vma_page_range.
