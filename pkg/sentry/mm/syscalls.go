@@ -73,6 +73,8 @@ func (mm *MemoryManager) HandleUserFault(ctx context.Context, addr usermem.Addr,
 
 // MMap establishes a memory mapping.
 func (mm *MemoryManager) MMap(ctx context.Context, opts memmap.MMapOpts) (usermem.Addr, error) {
+
+	fmt.Sprintf("Inside Mmap")
 	if opts.Length == 0 {
 		return 0, syserror.EINVAL
 	}
