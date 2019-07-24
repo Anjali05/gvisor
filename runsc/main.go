@@ -245,6 +245,7 @@ func main() {
 
 	log.Infof("***************************")
 	log.Infof("Args: %s", os.Args)
+	log.Infof("Hello from Anjali")
 	log.Infof("Version %s", version)
 	log.Infof("PID: %d", os.Getpid())
 	log.Infof("UID: %d, GID: %d", os.Getuid(), os.Getgid())
